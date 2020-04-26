@@ -17,6 +17,8 @@ from django.db.models.query import EmptyQuerySet, QuerySet
 # considered implementation details.)
 __all__ = ['QuerySetSequence']
 
+# The maximum number of items to display in a QuerySetSequence.__repr__
+REPR_OUTPUT_SIZE = 20
 
 def cmp(a, b):
     """Python 3 version of cmp built-in."""
@@ -340,6 +342,12 @@ class QuerySetSequence(ComparatorMixin):
             self._result_cache = list(self._iterable_class(self))
 
     # Python magic methods.
+    
+    def __repr__(self):
+        data = list(self[:REPR_OUTPUT_SIZE + 1])
+        if len(data) > REPR_OUTPUT_SIZE:
+            data[-1] = "...(remaining elements truncated)..."
+        return '<%s %r>' % (self.__class__.__name__, data)
 
     def __len__(self):
         self._fetch_all()
@@ -537,6 +545,34 @@ class QuerySetSequence(ComparatorMixin):
         clone._querysets = [qs.filter(**fields) for qs in clone._querysets]
         return clone
 
+    # not yet completed
+    def complex_filter(self, filter_obj):
+        """
+        Return a new QuerySet instance with filter_obj added to the filters.
+
+        filter_obj can be a Q object or a dictionary of keyword lookup
+        arguments.
+
+        This exists to support framework features such as 'limit_choices_to',
+        and usually it will be more natural to use other methods.
+        """
+        if isinstance(filter_obj, Q):
+            #isinstance(other, QuerySet):
+            #clone = self._chain()
+            clone = self._querysets
+            #print("here 1")
+            clone.query.add_q(filter_obj)  
+            return clone # not completed
+
+        else:
+            #print("here 2")
+            #return self._filter_or_exclude(None, **filter_obj)
+            qss_fields, fields = self._separate_filter_fields(**filter_obj)
+
+            clone = self._clone()
+            clone._filter_or_exclude_querysets(False, **qss_fields)
+            return clone # not completed #self._filter_or_exclude_querysets(None, **filter_obj)
+      
     def exclude(self, **kwargs):
         qss_fields, fields = self._separate_filter_fields(**kwargs)
 
